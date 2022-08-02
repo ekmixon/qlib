@@ -25,7 +25,7 @@ def get_module_logger(module_name, level: Optional[int] = None):
     if level is None:
         level = C.logging_level
 
-    module_name = "qlib.{}".format(module_name)
+    module_name = f"qlib.{module_name}"
     # Get logger.
     module_logger = logging.getLogger(module_name)
     module_logger.setLevel(level)
@@ -63,8 +63,7 @@ class TimeInspector:
         :return: float
             Time diff calculated by last time mark with current time.
         """
-        cost_time = time() - cls.time_marks.pop()
-        return cost_time
+        return time() - cls.time_marks.pop()
 
     @classmethod
     def log_cost_time(cls, info="Done"):
@@ -127,5 +126,5 @@ class LogFilter(logging.Filter):
         if isinstance(self.param, str):
             allow = not self.match_msg(self.param, record.msg)
         elif isinstance(self.param, list):
-            allow = not any([self.match_msg(p, record.msg) for p in self.param])
+            allow = not any(self.match_msg(p, record.msg) for p in self.param)
         return allow

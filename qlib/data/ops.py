@@ -48,7 +48,7 @@ class ElemOperator(ExpressionOps):
         self.feature = feature
 
     def __str__(self):
-        return "{}({})".format(type(self).__name__, self.feature)
+        return f"{type(self).__name__}({self.feature})"
 
     def get_longest_back_rolling(self):
         return self.feature.get_longest_back_rolling()
@@ -164,7 +164,7 @@ class Power(NpElemOperator):
         self.exponent = exponent
 
     def __str__(self):
-        return "{}({},{})".format(type(self).__name__, self.feature, self.exponent)
+        return f"{type(self).__name__}({self.feature},{self.exponent})"
 
     def _load_internal(self, instrument, start_index, end_index, freq):
         series = self.feature.load(instrument, start_index, end_index, freq)
@@ -192,7 +192,7 @@ class Mask(NpElemOperator):
         self.instrument = instrument
 
     def __str__(self):
-        return "{}({},{})".format(type(self).__name__, self.feature, self.instrument.lower())
+        return f"{type(self).__name__}({self.feature},{self.instrument.lower()})"
 
     def _load_internal(self, instrument, start_index, end_index, freq):
         return self.feature.load(self.instrument, start_index, end_index, freq)
@@ -242,7 +242,7 @@ class PairOperator(ExpressionOps):
         self.feature_right = feature_right
 
     def __str__(self):
-        return "{}({},{})".format(type(self).__name__, self.feature_left, self.feature_right)
+        return f"{type(self).__name__}({self.feature_left},{self.feature_right})"
 
     def get_longest_back_rolling(self):
         if isinstance(self.feature_left, Expression):
@@ -606,7 +606,7 @@ class If(ExpressionOps):
         self.feature_right = feature_right
 
     def __str__(self):
-        return "If({},{},{})".format(self.condition, self.feature_left, self.feature_right)
+        return f"If({self.condition},{self.feature_left},{self.feature_right})"
 
     def _load_internal(self, instrument, start_index, end_index, freq):
         series_cond = self.condition.load(instrument, start_index, end_index, freq)
@@ -618,8 +618,10 @@ class If(ExpressionOps):
             series_right = self.feature_right.load(instrument, start_index, end_index, freq)
         else:
             series_right = self.feature_right
-        series = pd.Series(np.where(series_cond, series_left, series_right), index=series_cond.index)
-        return series
+        return pd.Series(
+            np.where(series_cond, series_left, series_right),
+            index=series_cond.index,
+        )
 
     def get_longest_back_rolling(self):
         if isinstance(self.feature_left, Expression):
@@ -685,7 +687,7 @@ class Rolling(ExpressionOps):
         self.func = func
 
     def __str__(self):
-        return "{}({},{})".format(type(self).__name__, self.feature, self.N)
+        return f"{type(self).__name__}({self.feature},{self.N})"
 
     def _load_internal(self, instrument, start_index, end_index, freq):
         series = self.feature.load(instrument, start_index, end_index, freq)
@@ -1013,7 +1015,7 @@ class Quantile(Rolling):
         self.qscore = qscore
 
     def __str__(self):
-        return "{}({},{},{})".format(type(self).__name__, self.feature, self.N, self.qscore)
+        return f"{type(self).__name__}({self.feature},{self.N},{self.qscore})"
 
     def _load_internal(self, instrument, start_index, end_index, freq):
         series = self.feature.load(instrument, start_index, end_index, freq)
@@ -1105,9 +1107,7 @@ class Rank(Rolling):
             if np.isnan(x[-1]):
                 return np.nan
             x1 = x[~np.isnan(x)]
-            if x1.shape[0] == 0:
-                return np.nan
-            return percentileofscore(x1, x1[-1]) / len(x1)
+            return np.nan if x1.shape[0] == 0 else percentileofscore(x1, x1[-1]) / len(x1)
 
         if self.N == 0:
             series = series.expanding(min_periods=1).apply(rank, raw=True)
@@ -1349,16 +1349,18 @@ class PairRolling(ExpressionOps):
         self.func = func
 
     def __str__(self):
-        return "{}({},{},{})".format(type(self).__name__, self.feature_left, self.feature_right, self.N)
+        return f"{type(self).__name__}({self.feature_left},{self.feature_right},{self.N})"
 
     def _load_internal(self, instrument, start_index, end_index, freq):
         series_left = self.feature_left.load(instrument, start_index, end_index, freq)
         series_right = self.feature_right.load(instrument, start_index, end_index, freq)
-        if self.N == 0:
-            series = getattr(series_left.expanding(min_periods=1), self.func)(series_right)
-        else:
-            series = getattr(series_left.rolling(self.N, min_periods=1), self.func)(series_right)
-        return series
+        return (
+            getattr(series_left.expanding(min_periods=1), self.func)(series_right)
+            if self.N == 0
+            else getattr(series_left.rolling(self.N, min_periods=1), self.func)(
+                series_right
+            )
+        )
 
     def get_longest_back_rolling(self):
         if self.N == 0:
@@ -1498,12 +1500,13 @@ class OpsWrapper:
     def register(self, ops_list):
         for operator in ops_list:
             if not issubclass(operator, ExpressionOps):
-                raise TypeError("operator must be subclass of ExpressionOps, not {}".format(operator))
+                raise TypeError(f"operator must be subclass of ExpressionOps, not {operator}")
 
             if operator.__name__ in self._ops:
                 get_module_logger(self.__class__.__name__).warning(
-                    "The custom operator [{}] will override the qlib default definition".format(operator.__name__)
+                    f"The custom operator [{operator.__name__}] will override the qlib default definition"
                 )
+
             self._ops[operator.__name__] = operator
 
     def __getattr__(self, key):
@@ -1524,4 +1527,4 @@ def register_all_ops(C):
 
     if getattr(C, "custom_ops", None) is not None:
         Operators.register(C.custom_ops)
-        logger.debug("register custom operator {}".format(C.custom_ops))
+        logger.debug(f"register custom operator {C.custom_ops}")

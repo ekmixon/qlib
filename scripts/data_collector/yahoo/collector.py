@@ -82,9 +82,7 @@ class YahooCollector(BaseCollector):
     def init_datetime(self):
         if self.interval == self.INTERVAL_1min:
             self.start_datetime = max(self.start_datetime, self.DEFAULT_START_DATETIME_1MIN)
-        elif self.interval == self.INTERVAL_1d:
-            pass
-        else:
+        elif self.interval != self.INTERVAL_1d:
             raise ValueError(f"interval error: {self.interval}")
 
         # using for 1min
@@ -378,8 +376,6 @@ class YahooNormalize1d(YahooNormalize, ABC):
                 df[_col] = df[_col] * _close
             elif _col != "change":
                 df[_col] = df[_col] / _close
-            else:
-                pass
         return df.reset_index()
 
 
@@ -423,14 +419,14 @@ class YahooNormalize1min(YahooNormalize, ABC):
         am_range = self.AM_RANGE
         pm_range = self.PM_RANGE
         for _day in calendars:
-            for _range in [am_range, pm_range]:
-                res.append(
-                    pd.date_range(
-                        f"{_day.strftime(daily_format)} {_range[0]}",
-                        f"{_day.strftime(daily_format)} {_range[1]}",
-                        freq="1min",
-                    )
+            res.extend(
+                pd.date_range(
+                    f"{_day.strftime(daily_format)} {_range[0]}",
+                    f"{_day.strftime(daily_format)} {_range[1]}",
+                    freq="1min",
                 )
+                for _range in [am_range, pm_range]
+            )
 
         return pd.Index(sorted(set(np.hstack(res))))
 

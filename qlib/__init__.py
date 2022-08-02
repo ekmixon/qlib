@@ -37,13 +37,13 @@ def init(default_conf="client", **kwargs):
     elif C.get_uri_type() == C.NFS_URI:
         _mount_nfs_uri(C)
     else:
-        raise NotImplementedError(f"This type of URI is not supported")
+        raise NotImplementedError("This type of URI is not supported")
 
     C.register()
 
     if "flask_server" in C:
         logger.info(f"flask_server={C['flask_server']}, flask_port={C['flask_port']}")
-    logger.info("qlib successfully initialized based on %s settings." % default_conf)
+    logger.info(f"qlib successfully initialized based on {default_conf} settings.")
     logger.info(f"data_path={C.get_data_path()}")
 
 
@@ -54,20 +54,18 @@ def _mount_nfs_uri(C):
 
     # FIXME: the C["provider_uri"] is modified in this function
     # If it is not modified, we can pass only  provider_uri or mount_path instead of C
-    mount_command = "sudo mount.nfs %s %s" % (C["provider_uri"], C["mount_path"])
+    mount_command = f'sudo mount.nfs {C["provider_uri"]} {C["mount_path"]}'
     # If the provider uri looks like this 172.23.233.89//data/csdesign'
     # It will be a nfs path. The client provider will be used
-    if not C["auto_mount"]:
-        if not os.path.exists(C["mount_path"]):
-            raise FileNotFoundError(
-                f"Invalid mount path: {C['mount_path']}! Please mount manually: {mount_command} or Set init parameter `auto_mount=True`"
-            )
-    else:
+    if C["auto_mount"]:
         # Judging system type
         sys_type = platform.system()
         if "win" in sys_type.lower():
             # system: window
-            exec_result = os.popen("mount -o anon %s %s" % (C["provider_uri"], C["mount_path"] + ":"))
+            exec_result = os.popen(
+                f'mount -o anon {C["provider_uri"]} {C["mount_path"] + ":"}'
+            )
+
             result = exec_result.read()
             if "85" in result:
                 LOG.warning("already mounted or window mount path already exists")
@@ -92,12 +90,7 @@ def _mount_nfs_uri(C):
             _check_level_num = 2
             _is_mount = False
             while _check_level_num:
-                with subprocess.Popen(
-                    'mount | grep "{}"'.format(_remote_uri),
-                    shell=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                ) as shell_r:
+                with subprocess.Popen(f'mount | grep "{_remote_uri}"', shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as shell_r:
                     _command_log = shell_r.stdout.readlines()
                 if len(_command_log) > 0:
                     for _c in _command_log:
@@ -138,6 +131,11 @@ def _mount_nfs_uri(C):
                     LOG.info("Mount finished")
             else:
                 LOG.warning(f"{_remote_uri} on {_mount_path} is already mounted")
+
+    elif not os.path.exists(C["mount_path"]):
+        raise FileNotFoundError(
+            f"Invalid mount path: {C['mount_path']}! Please mount manually: {mount_command} or Set init parameter `auto_mount=True`"
+        )
 
 
 def init_from_yaml_conf(conf_path, **kwargs):

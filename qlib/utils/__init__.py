@@ -115,7 +115,7 @@ def requests_with_retry(url, retry=5, **kwargs):
         except AssertionError:
             continue
         except Exception as e:
-            log.warning("exception encountered {}".format(e))
+            log.warning(f"exception encountered {e}")
             continue
     raise Exception("ERROR: requests failed!")
 
@@ -207,7 +207,7 @@ def get_cls_kwargs(config: Union[dict, str], module) -> (type, dict):
         klass = getattr(module, config)
         kwargs = {}
     else:
-        raise NotImplementedError(f"This type of input is not supported")
+        raise NotImplementedError("This type of input is not supported")
     return klass, kwargs
 
 
@@ -272,8 +272,9 @@ def compare_dict_value(src_data: dict, dst_data: dict):
     src_data = json.dumps(src_data, indent=4, sort_keys=True, cls=DateEncoder)
     dst_data = json.dumps(dst_data, indent=4, sort_keys=True, cls=DateEncoder)
     diff = difflib.ndiff(src_data, dst_data)
-    changes = [line for line in diff if line.startswith("+ ") or line.startswith("- ")]
-    return changes
+    return [
+        line for line in diff if line.startswith("+ ") or line.startswith("- ")
+    ]
 
 
 def get_or_create_path(path: Optional[Text] = None, return_dir: bool = False):
@@ -337,7 +338,10 @@ def save_multiple_parts_file(filename, format="gztar"):
 
     # Create model dir
     if os.path.exists(file_path):
-        raise FileExistsError("ERROR: file exists: {}, cannot be create the directory.".format(file_path))
+        raise FileExistsError(
+            f"ERROR: file exists: {file_path}, cannot be create the directory."
+        )
+
 
     os.makedirs(file_path)
 
@@ -419,8 +423,7 @@ def get_tmp_file_with_buffer(buffer):
         os.makedirs(temp_dir)
     with tempfile.NamedTemporaryFile("wb", delete=True, dir=temp_dir) as fp:
         fp.write(buffer)
-        file_path = fp.name
-        yield file_path
+        yield fp.name
 
 
 def remove_repeat_field(fields):
@@ -461,12 +464,8 @@ def normalize_cache_instruments(instruments):
     """
     if isinstance(instruments, (list, tuple, pd.Index, np.ndarray)):
         instruments = sorted(list(instruments))
-    else:
-        # dict type stockpool
-        if "market" in instruments:
-            pass
-        else:
-            instruments = {k: sorted(v) for k, v in instruments.items()}
+    elif "market" not in instruments:
+        instruments = {k: sorted(v) for k, v in instruments.items()}
     return instruments
 
 
@@ -517,7 +516,7 @@ def get_date_by_shift(trading_date, shift, future=False, clip_shift=True):
 
     cal = D.calendar(future=future)
     if pd.to_datetime(trading_date) not in list(cal):
-        raise ValueError("{} is not trading day!".format(str(trading_date)))
+        raise ValueError(f"{str(trading_date)} is not trading day!")
     _index = bisect.bisect_left(cal, trading_date)
     shift_index = _index + shift
     if shift_index < 0 or shift_index >= len(cal):
@@ -561,9 +560,9 @@ def transform_end_date(end_date=None, freq="day"):
     last_date = D.calendar(freq=freq)[-1]
     if end_date is None or (str(end_date) == "-1") or (pd.Timestamp(last_date) < pd.Timestamp(end_date)):
         log.warning(
-            "\nInfo: the end_date in the configuration file is {}, "
-            "so the default last date {} is used.".format(end_date, last_date)
+            f"\nInfo: the end_date in the configuration file is {end_date}, so the default last date {last_date} is used."
         )
+
         end_date = last_date
     return end_date
 
@@ -577,8 +576,7 @@ def get_date_in_file_name(file_name):
                 'YYYY-MM-DD'
     """
     pattern = "[0-9]{4}-[0-9]{2}-[0-9]{2}"
-    date = re.search(pattern, str(file_name)).group()
-    return date
+    return re.search(pattern, str(file_name)).group()
 
 
 def split_pred(pred, number=None, split_date=None):
@@ -641,7 +639,7 @@ def exists_qlib_data(qlib_dir):
     features_dir = qlib_dir.joinpath("features")
     # check dir
     for _dir in [calendars_dir, instruments_dir, features_dir]:
-        if not (_dir.exists() and list(_dir.iterdir())):
+        if not _dir.exists() or not list(_dir.iterdir()):
             return False
     # check calendar bin
     for _calendar in calendars_dir.iterdir():
@@ -652,10 +650,7 @@ def exists_qlib_data(qlib_dir):
     code_names = set(map(lambda x: x.name.lower(), features_dir.iterdir()))
     _instrument = instruments_dir.joinpath("all.txt")
     miss_code = set(pd.read_csv(_instrument, sep="\t", header=None).loc[:, 0].apply(str.lower)) - set(code_names)
-    if miss_code and any(map(lambda x: "sht" not in x, miss_code)):
-        return False
-
-    return True
+    return not miss_code or not any(map(lambda x: "sht" not in x, miss_code))
 
 
 def check_qlib_data(qlib_config):
@@ -690,10 +685,7 @@ def lazy_sort_index(df: pd.DataFrame, axis=0) -> pd.DataFrame:
         sorted dataframe
     """
     idx = df.index if axis == 0 else df.columns
-    if idx.is_monotonic_increasing:
-        return df
-    else:
-        return df.sort_index(axis=axis)
+    return df if idx.is_monotonic_increasing else df.sort_index(axis=axis)
 
 
 def flatten_dict(d, parent_key="", sep="."):
@@ -781,9 +773,9 @@ def code_to_fname(code: str):
     replace_names += [f"COM{i}" for i in range(10)]
     replace_names += [f"LPT{i}" for i in range(10)]
 
-    prefix = "_qlib_"
-    if str(code).upper() in replace_names:
-        code = prefix + str(code)
+    if code.upper() in replace_names:
+        prefix = "_qlib_"
+        code = prefix + code
 
     return code
 

@@ -256,7 +256,7 @@ class QlibConfig(Config):
         elif self.get_uri_type() == QlibConfig.NFS_URI:
             return self["mount_path"]
         else:
-            raise NotImplementedError(f"This type of uri is not supported")
+            raise NotImplementedError("This type of uri is not supported")
 
     def set(self, default_conf="client", **kwargs):
         from .utils import set_log_with_config, get_module_logger, can_use_cache
@@ -280,19 +280,20 @@ class QlibConfig(Config):
 
         for k, v in kwargs.items():
             if k not in self:
-                logger.warning("Unrecognized config %s" % k)
+                logger.warning(f"Unrecognized config {k}")
             self[k] = v
 
         self.resolve_path()
 
-        if not (self["expression_cache"] is None and self["dataset_cache"] is None):
-            # check redis
-            if not can_use_cache():
-                logger.warning(
-                    f"redis connection failed(host={self['redis_host']} port={self['redis_port']}), cache will not be used!"
-                )
-                self["expression_cache"] = None
-                self["dataset_cache"] = None
+        if (
+            self["expression_cache"] is not None
+            or self["dataset_cache"] is not None
+        ) and not can_use_cache():
+            logger.warning(
+                f"redis connection failed(host={self['redis_host']} port={self['redis_port']}), cache will not be used!"
+            )
+            self["expression_cache"] = None
+            self["dataset_cache"] = None
 
     def register(self):
         from .utils import init_instance_by_config

@@ -136,8 +136,8 @@ def get_calendar_list_by_ratio(
 
     _number_all_funds = len(file_list)
 
-    logger.info(f"count how many funds trade in this day......")
-    _dict_count_trade = dict()  # dict{date:count}
+    logger.info("count how many funds trade in this day......")
+    _dict_count_trade = {}
     _fun = partial(return_date_list, date_field_name)
     all_oldest_list = []
     with tqdm(total=_number_all_funds) as p_bar:
@@ -153,21 +153,20 @@ def get_calendar_list_by_ratio(
 
                 p_bar.update()
 
-    logger.info(f"count how many funds have founded in this day......")
-    _dict_count_founding = {date: _number_all_funds for date in _dict_count_trade.keys()}  # dict{date:count}
+    logger.info("count how many funds have founded in this day......")
+    _dict_count_founding = {date: _number_all_funds for date in _dict_count_trade}
     with tqdm(total=_number_all_funds) as p_bar:
         for oldest_date in all_oldest_list:
-            for date in _dict_count_founding.keys():
+            for date in _dict_count_founding:
                 if date < oldest_date:
                     _dict_count_founding[date] -= 1
 
-    calendar = [
+    return [
         date
         for date in _dict_count_trade
-        if _dict_count_trade[date] >= max(int(_dict_count_founding[date] * threshold), minimum_count)
+        if _dict_count_trade[date]
+        >= max(int(_dict_count_founding[date] * threshold), minimum_count)
     ]
-
-    return calendar
 
 
 def get_hs_stock_symbols() -> list:
@@ -347,10 +346,7 @@ def symbol_suffix_to_prefix(symbol: str, capital: bool = True) -> str:
 
     """
     code, exchange = symbol.split(".")
-    if exchange.lower() in ["sh", "ss"]:
-        res = f"sh{code}"
-    else:
-        res = f"{exchange}{code}"
+    res = f"sh{code}" if exchange.lower() in ["sh", "ss"] else f"{exchange}{code}"
     return res.upper() if capital else res.lower()
 
 

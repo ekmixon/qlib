@@ -31,13 +31,15 @@ class Experiment:
     @property
     def info(self):
         recorders = self.list_recorders()
-        output = dict()
-        output["class"] = "Experiment"
-        output["id"] = self.id
-        output["name"] = self.name
-        output["active_recorder"] = self.active_recorder.id if self.active_recorder is not None else None
-        output["recorders"] = list(recorders.keys())
-        return output
+        return {
+            "class": "Experiment",
+            "id": self.id,
+            "name": self.name,
+            "active_recorder": self.active_recorder.id
+            if self.active_recorder is not None
+            else None,
+            "recorders": list(recorders.keys()),
+        }
 
     def start(self, recorder_name=None, resume=False):
         """
@@ -54,7 +56,7 @@ class Experiment:
         -------
         An active recorder.
         """
-        raise NotImplementedError(f"Please implement the `start` method.")
+        raise NotImplementedError("Please implement the `start` method.")
 
     def end(self, recorder_status=Recorder.STATUS_S):
         """
@@ -65,7 +67,7 @@ class Experiment:
         recorder_status : str
             the status the recorder to be set with when ending (SCHEDULED, RUNNING, FINISHED, FAILED).
         """
-        raise NotImplementedError(f"Please implement the `end` method.")
+        raise NotImplementedError("Please implement the `end` method.")
 
     def create_recorder(self, recorder_name=None):
         """
@@ -80,7 +82,7 @@ class Experiment:
         -------
         A recorder object.
         """
-        raise NotImplementedError(f"Please implement the `create_recorder` method.")
+        raise NotImplementedError("Please implement the `create_recorder` method.")
 
     def search_records(self, **kwargs):
         """
@@ -94,7 +96,7 @@ class Experiment:
         respectively. For records that don't have a particular metric, parameter, or tag, their
         value will be (NumPy) Nan, None, or None respectively.
         """
-        raise NotImplementedError(f"Please implement the `search_records` method.")
+        raise NotImplementedError("Please implement the `search_records` method.")
 
     def delete_recorder(self, recorder_id):
         """
@@ -105,7 +107,7 @@ class Experiment:
         recorder_id : str
             the id of the recorder to be deleted.
         """
-        raise NotImplementedError(f"Please implement the `delete_recorder` method.")
+        raise NotImplementedError("Please implement the `delete_recorder` method.")
 
     def get_recorder(self, recorder_id=None, recorder_name=None, create: bool = True, start: bool = False):
         """
@@ -209,7 +211,7 @@ class Experiment:
         ------
         ValueError
         """
-        raise NotImplementedError(f"Please implement the `_get_recorder` method")
+        raise NotImplementedError("Please implement the `_get_recorder` method")
 
     def list_recorders(self):
         """
@@ -220,7 +222,7 @@ class Experiment:
         -------
         A dictionary (id -> recorder) of recorder information that being stored.
         """
-        raise NotImplementedError(f"Please implement the `list_recorders` method.")
+        raise NotImplementedError("Please implement the `list_recorders` method.")
 
 
 class MLflowExperiment(Experiment):
@@ -264,9 +266,7 @@ class MLflowExperiment(Experiment):
     def create_recorder(self, recorder_name=None):
         if recorder_name is None:
             recorder_name = self._default_rec_name
-        recorder = MLflowRecorder(self.id, self._uri, recorder_name)
-
-        return recorder
+        return MLflowRecorder(self.id, self._uri, recorder_name)
 
     def _get_recorder(self, recorder_id=None, recorder_name=None):
         """
@@ -279,8 +279,7 @@ class MLflowExperiment(Experiment):
         if recorder_id is not None:
             try:
                 run = self._client.get_run(recorder_id)
-                recorder = MLflowRecorder(self.id, self._uri, mlflow_run=run)
-                return recorder
+                return MLflowRecorder(self.id, self._uri, mlflow_run=run)
             except MlflowException:
                 raise ValueError("No valid recorder has been found, please make sure the input recorder id is correct.")
         elif recorder_name is not None:
@@ -320,7 +319,7 @@ class MLflowExperiment(Experiment):
 
     def list_recorders(self, max_results=UNLIMITED):
         runs = self._client.search_runs(self.id, run_view_type=ViewType.ACTIVE_ONLY, max_results=max_results)
-        recorders = dict()
+        recorders = {}
         for i in range(len(runs)):
             recorder = MLflowRecorder(self.id, self._uri, mlflow_run=runs[i])
             recorders[runs[i].info.run_id] = recorder

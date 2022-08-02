@@ -58,7 +58,7 @@ class ExpManager:
         -------
         An active experiment.
         """
-        raise NotImplementedError(f"Please implement the `start_exp` method.")
+        raise NotImplementedError("Please implement the `start_exp` method.")
 
     def end_exp(self, recorder_status: Text = Recorder.STATUS_S, **kwargs):
         """
@@ -71,7 +71,7 @@ class ExpManager:
         recorder_status : str
             the status of the active recorder of the experiment.
         """
-        raise NotImplementedError(f"Please implement the `end_exp` method.")
+        raise NotImplementedError("Please implement the `end_exp` method.")
 
     def create_exp(self, experiment_name: Optional[Text] = None):
         """
@@ -86,7 +86,7 @@ class ExpManager:
         -------
         An experiment object.
         """
-        raise NotImplementedError(f"Please implement the `create_exp` method.")
+        raise NotImplementedError("Please implement the `create_exp` method.")
 
     def search_records(self, experiment_ids=None, **kwargs):
         """
@@ -100,7 +100,7 @@ class ExpManager:
         respectively. For records that don't have a particular metric, parameter, or tag, their
         value will be (NumPy) Nan, None, or None respectively.
         """
-        raise NotImplementedError(f"Please implement the `search_records` method.")
+        raise NotImplementedError("Please implement the `search_records` method.")
 
     def get_exp(self, experiment_id=None, experiment_name=None, create: bool = True, start: bool = False):
         """
@@ -206,7 +206,7 @@ class ExpManager:
         ------
         ValueError
         """
-        raise NotImplementedError(f"Please implement the `_get_exp` method")
+        raise NotImplementedError("Please implement the `_get_exp` method")
 
     def delete_exp(self, experiment_id=None, experiment_name=None):
         """
@@ -219,7 +219,7 @@ class ExpManager:
         experiment_name  : str
             the experiment name.
         """
-        raise NotImplementedError(f"Please implement the `delete_exp` method.")
+        raise NotImplementedError("Please implement the `delete_exp` method.")
 
     @property
     def default_uri(self):
@@ -263,7 +263,7 @@ class ExpManager:
         """
         Customized features for subclasses' set_uri function.
         """
-        raise NotImplementedError(f"Please implement the `_set_uri` method.")
+        raise NotImplementedError("Please implement the `_set_uri` method.")
 
     def list_experiments(self):
         """
@@ -273,7 +273,7 @@ class ExpManager:
         -------
         A dictionary (name -> experiment) of experiments information that being stored.
         """
-        raise NotImplementedError(f"Please implement the `list_experiments` method.")
+        raise NotImplementedError("Please implement the `list_experiments` method.")
 
 
 class MLflowExpManager(ExpManager):
@@ -390,7 +390,7 @@ class MLflowExpManager(ExpManager):
     def list_experiments(self):
         # retrieve all the existing experiments
         exps = self.client.list_experiments(view_type=ViewType.ACTIVE_ONLY)
-        experiments = dict()
+        experiments = {}
         for exp in exps:
             experiment = MLflowExperiment(exp.experiment_id, exp.name, self.uri)
             experiments[exp.name] = experiment

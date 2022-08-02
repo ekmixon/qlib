@@ -243,17 +243,13 @@ class SeriesDFilter(BaseDFilter):
             # Get filter series
             if inst in _all_filter_series:
                 _filter_series = _all_filter_series[inst]
+            elif self.keep:
+                _filter_series = pd.Series({timestamp: True for timestamp in _filter_calendar})
             else:
-                if self.keep:
-                    _filter_series = pd.Series({timestamp: True for timestamp in _filter_calendar})
-                else:
-                    _filter_series = pd.Series({timestamp: False for timestamp in _filter_calendar})
+                _filter_series = pd.Series({timestamp: False for timestamp in _filter_calendar})
             # Calculate bool value within the range of filter
             _timestamp_series = self._filterSeries(_timestamp_series, _filter_series)
-            # Reform the map to (start_timestamp, end_timestamp) format
-            _timestamp = self._toTimestamp(_timestamp_series)
-            # Remove empty timestamp
-            if _timestamp:
+            if _timestamp := self._toTimestamp(_timestamp_series):
                 _instruments_filtered[inst] = _timestamp
         return _instruments_filtered
 
@@ -352,8 +348,7 @@ class ExpressionDFilter(SeriesDFilter):
             # use LocalDatasetProvider
             _features = DatasetD.dataset(instruments, [self.rule_expression], fstart, fend, freq=self.filter_freq)
         rule_expression_field_name = list(_features.keys())[0]
-        all_filter_series = _features[rule_expression_field_name]
-        return all_filter_series
+        return _features[rule_expression_field_name]
 
     @staticmethod
     def from_config(config):

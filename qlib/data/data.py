@@ -264,11 +264,15 @@ class ExpressionProvider(abc.ABC):
                 self.expression_instance_cache[field] = expression
         except NameError as e:
             get_module_logger("data").exception(
-                "ERROR: field [%s] contains invalid operator/variable [%s]" % (str(field), str(e).split()[1])
+                f"ERROR: field [{str(field)}] contains invalid operator/variable [{str(e).split()[1]}]"
             )
+
             raise
         except SyntaxError:
-            get_module_logger("data").exception("ERROR: field [%s] contains invalid syntax" % str(field))
+            get_module_logger("data").exception(
+                f"ERROR: field [{str(field)}] contains invalid syntax"
+            )
+
             raise
         return expression
 
@@ -387,8 +391,7 @@ class DatasetProvider(abc.ABC):
         if len(fields) == 0:
             raise ValueError("fields cannot be empty")
         fields = fields.copy()
-        column_names = [str(f) for f in fields]
-        return column_names
+        return [str(f) for f in fields]
 
     @staticmethod
     def parse_fields(fields):
@@ -403,7 +406,7 @@ class DatasetProvider(abc.ABC):
 
         """
         normalize_column_names = normalize_cache_fields(column_names)
-        data = dict()
+        data = {}
         # One process for one task, so that the memory will be freed quicker.
         workers = min(C.kernels, len(instruments_d))
         if C.maxtasksperchild is None:
@@ -442,13 +445,11 @@ class DatasetProvider(abc.ABC):
         p.close()
         p.join()
 
-        new_data = dict()
-        for inst in sorted(data.keys()):
-            if len(data[inst].get()) > 0:
-                # NOTE: Python version >= 3.6; in versions after python3.6, dict will always guarantee the insertion order
-                new_data[inst] = data[inst].get()
-
-        if len(new_data) > 0:
+        if new_data := {
+            inst: data[inst].get()
+            for inst in sorted(data.keys())
+            if len(data[inst].get()) > 0
+        }:
             data = pd.concat(new_data, names=["instrument"], sort=False)
             data = DiskDatasetCache.cache_to_origin_data(data, column_names)
         else:
@@ -471,10 +472,10 @@ class DatasetProvider(abc.ABC):
             C.set_conf_from_C(g_config)
             C.register()
 
-        obj = dict()
-        for field in column_names:
-            #  The client does not have expression provider, the data will be loaded from cache using static method.
-            obj[field] = ExpressionD.expression(inst, field, start_time, end_time, freq)
+        obj = {
+            field: ExpressionD.expression(inst, field, start_time, end_time, freq)
+            for field in column_names
+        }
 
         data = pd.DataFrame(obj)
         _calendar = Cal.calendar(freq=freq)
@@ -483,11 +484,10 @@ class DatasetProvider(abc.ABC):
 
         if spans is None:
             return data
-        else:
-            mask = np.zeros(len(data), dtype=bool)
-            for begin, end in spans:
-                mask |= (data.index >= begin) & (data.index <= end)
-            return data[mask]
+        mask = np.zeros(len(data), dtype=bool)
+        for begin, end in spans:
+            mask |= (data.index >= begin) & (data.index <= end)
+        return data[mask]
 
 
 class LocalCalendarProvider(CalendarProvider):
@@ -572,7 +572,7 @@ class LocalInstrumentProvider(InstrumentProvider):
         if not os.path.exists(fname):
             raise ValueError("instruments not exists for market " + market)
 
-        _instruments = dict()
+        _instruments = {}
         df = pd.read_csv(
             fname,
             sep="\t",
@@ -615,9 +615,7 @@ class LocalInstrumentProvider(InstrumentProvider):
             filter_t = getattr(F, filter_config["filter_type"]).from_config(filter_config)
             _instruments_filtered = filter_t(_instruments_filtered, start_time, end_time, freq)
         # as list
-        if as_list:
-            return list(_instruments_filtered)
-        return _instruments_filtered
+        return list(_instruments_filtered) if as_list else _instruments_filtered
 
 
 class LocalFeatureProvider(FeatureProvider):
@@ -640,12 +638,13 @@ class LocalFeatureProvider(FeatureProvider):
         instrument = code_to_fname(instrument)
         uri_data = self._uri_data.format(instrument.lower(), field, freq)
         if not os.path.exists(uri_data):
-            get_module_logger("data").warning("WARN: data not found for %s.%s" % (instrument, field))
+            get_module_logger("data").warning(
+                f"WARN: data not found for {instrument}.{field}"
+            )
+
             return pd.Series(dtype=np.float32)
-            # raise ValueError('uri_data not found: ' + uri_data)
-        # load
-        series = read_bin(uri_data, start_index, end_index)
-        return series
+                # raise ValueError('uri_data not found: ' + uri_data)
+        return read_bin(uri_data, start_index, end_index)
 
 
 class LocalExpressionProvider(ExpressionProvider):
@@ -694,9 +693,9 @@ class LocalDatasetProvider(DatasetProvider):
         start_time = cal[0]
         end_time = cal[-1]
 
-        data = self.dataset_processor(instruments_d, column_names, start_time, end_time, freq)
-
-        return data
+        return self.dataset_processor(
+            instruments_d, column_names, start_time, end_time, freq
+        )
 
     @staticmethod
     def multi_cache_walker(instruments, fields, start_time=None, end_time=None, freq="day"):
@@ -769,8 +768,7 @@ class ClientCalendarProvider(CalendarProvider):
             msg_queue=self.queue,
             msg_proc_func=lambda response_content: [pd.Timestamp(c) for c in response_content],
         )
-        result = self.queue.get(timeout=C["timeout"])
-        return result
+        return self.queue.get(timeout=C["timeout"])
 
 
 class ClientInstrumentProvider(InstrumentProvider):
@@ -867,20 +865,16 @@ class ClientDatasetProvider(DatasetProvider):
             feature_uri = self.queue.get(timeout=C["timeout"])
             if isinstance(feature_uri, Exception):
                 raise feature_uri
-            else:
-                instruments_d = self.get_instruments_d(instruments, freq)
-                column_names = self.get_column_names(fields)
-                cal = Cal.calendar(start_time, end_time, freq)
-                if len(cal) == 0:
-                    return pd.DataFrame(columns=column_names)
-                start_time = cal[0]
-                end_time = cal[-1]
+            instruments_d = self.get_instruments_d(instruments, freq)
+            column_names = self.get_column_names(fields)
+            cal = Cal.calendar(start_time, end_time, freq)
+            if len(cal) == 0:
+                return pd.DataFrame(columns=column_names)
+            start_time = cal[0]
+            end_time = cal[-1]
 
-                data = self.dataset_processor(instruments_d, column_names, start_time, end_time, freq)
-                if return_uri:
-                    return data, feature_uri
-                else:
-                    return data
+            data = self.dataset_processor(instruments_d, column_names, start_time, end_time, freq)
+            return (data, feature_uri) if return_uri else data
         else:
 
             """
@@ -911,9 +905,7 @@ class ClientDatasetProvider(DatasetProvider):
                 mnt_feature_uri = os.path.join(C.get_data_path(), C.dataset_cache_dir_name, feature_uri)
                 df = DiskDatasetCache.read_data_from_cache(mnt_feature_uri, start_time, end_time, fields)
                 get_module_logger("data").debug("finish slicing data")
-                if return_uri:
-                    return df, feature_uri
-                return df
+                return (df, feature_uri) if return_uri else df
             except AttributeError:
                 raise IOError("Unable to fetch instruments from remote server!")
 

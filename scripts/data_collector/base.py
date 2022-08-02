@@ -81,7 +81,7 @@ class BaseCollector(abc.ABC):
 
         if limit_nums is not None:
             try:
-                self.instrument_list = self.instrument_list[: int(limit_nums)]
+                self.instrument_list = self.instrument_list[:limit_nums]
             except Exception as e:
                 logger.warning(f"Cannot use limit_nums={limit_nums}, the parameter will be ignored")
 

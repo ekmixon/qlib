@@ -86,46 +86,16 @@ class DNNModelPytorch(Model):
         self.weight_decay = weight_decay
 
         self.logger.info(
-            "DNN parameters setting:"
-            "\nlayers : {}"
-            "\nlr : {}"
-            "\nmax_steps : {}"
-            "\nbatch_size : {}"
-            "\nearly_stop_rounds : {}"
-            "\neval_steps : {}"
-            "\nlr_decay : {}"
-            "\nlr_decay_steps : {}"
-            "\noptimizer : {}"
-            "\nloss_type : {}"
-            "\neval_steps : {}"
-            "\nseed : {}"
-            "\ndevice : {}"
-            "\nuse_GPU : {}"
-            "\nweight_decay : {}".format(
-                layers,
-                lr,
-                max_steps,
-                batch_size,
-                early_stop_rounds,
-                eval_steps,
-                lr_decay,
-                lr_decay_steps,
-                optimizer,
-                loss,
-                eval_steps,
-                seed,
-                self.device,
-                self.use_gpu,
-                weight_decay,
-            )
+            f"DNN parameters setting:\nlayers : {layers}\nlr : {lr}\nmax_steps : {max_steps}\nbatch_size : {batch_size}\nearly_stop_rounds : {early_stop_rounds}\neval_steps : {eval_steps}\nlr_decay : {lr_decay}\nlr_decay_steps : {lr_decay_steps}\noptimizer : {optimizer}\nloss_type : {loss}\neval_steps : {eval_steps}\nseed : {seed}\ndevice : {self.device}\nuse_GPU : {self.use_gpu}\nweight_decay : {weight_decay}"
         )
+
 
         if self.seed is not None:
             np.random.seed(self.seed)
             torch.manual_seed(self.seed)
 
         if loss not in {"mse", "binary"}:
-            raise NotImplementedError("loss {} is not supported!".format(loss))
+            raise NotImplementedError(f"loss {loss} is not supported!")
         self._scorer = mean_squared_error if loss == "mse" else roc_auc_score
 
         self.dnn_model = Net(input_dim, output_dim, layers, loss=self.loss_type)
@@ -137,7 +107,7 @@ class DNNModelPytorch(Model):
         elif optimizer.lower() == "gd":
             self.train_optimizer = optim.SGD(self.dnn_model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         else:
-            raise NotImplementedError("optimizer {} is not supported!".format(optimizer))
+            raise NotImplementedError(f"optimizer {optimizer} is not supported!")
 
         # Reduce learning rate when loss has stopped decrease
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(

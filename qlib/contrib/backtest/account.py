@@ -162,7 +162,7 @@ class Account:
         self.init_vars(position.init_cash)
         self.current = position
         self.report = report
-        self.last_trade_date = last_trade_date if last_trade_date else None
+        self.last_trade_date = last_trade_date or None
 
     def save_account(self, account_path):
         self.current.save_position(account_path / "position.xlsx", self.last_trade_date)

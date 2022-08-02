@@ -44,10 +44,10 @@ class DEnsembleModel(Model):
             sample_ratios = [0.8, 0.7, 0.6, 0.5, 0.4]
         if sub_weights is None:  # the default values for sub_weights
             sub_weights = [1.0, 0.2, 0.2, 0.2, 0.2, 0.2]
-        if not len(sample_ratios) == bins_fs:
+        if len(sample_ratios) != bins_fs:
             raise ValueError("The length of sample_ratios should be equal to bins_fs.")
         self.sample_ratios = sample_ratios
-        if not len(sub_weights) == num_models:
+        if len(sub_weights) != num_models:
             raise ValueError("The length of sub_weights should be equal to num_models.")
         self.sub_weights = sub_weights
         self.epochs = epochs
@@ -55,8 +55,7 @@ class DEnsembleModel(Model):
         self.logger.info("Double Ensemble Model...")
         self.ensemble = []  # the current ensemble model, a list contains all the sub-models
         self.sub_features = []  # the features for each sub model in the form of pandas.Index
-        self.params = {"objective": loss}
-        self.params.update(kwargs)
+        self.params = {"objective": loss} | kwargs
         self.loss = loss
 
     def fit(self, dataset: DatasetH):
@@ -73,7 +72,7 @@ class DEnsembleModel(Model):
         # train sub-models
         for k in range(self.num_models):
             self.sub_features.append(features)
-            self.logger.info("Training sub-model: ({}/{})".format(k + 1, self.num_models))
+            self.logger.info(f"Training sub-model: ({k + 1}/{self.num_models})")
             model_k = self.train_submodel(df_train, df_valid, weights, features)
             self.ensemble.append(model_k)
             # no further sample re-weight and feature selection needed for the last sub-model
@@ -97,7 +96,7 @@ class DEnsembleModel(Model):
 
     def train_submodel(self, df_train, df_valid, weights, features):
         dtrain, dvalid = self._prepare_data_gbm(df_train, df_valid, weights, features)
-        evals_result = dict()
+        evals_result = {}
         model = lgb.train(
             self.params,
             dtrain,
@@ -213,23 +212,22 @@ class DEnsembleModel(Model):
             raise ValueError("not implemented yet")
 
     def retrieve_loss_curve(self, model, df_train, features):
-        if self.base_model == "gbm":
-            num_trees = model.num_trees()
-            x_train, y_train = df_train["feature"].loc[:, features], df_train["label"]
-            # Lightgbm need 1D array as its label
-            if y_train.values.ndim == 2 and y_train.values.shape[1] == 1:
-                y_train = np.squeeze(y_train.values)
-            else:
-                raise ValueError("LightGBM doesn't support multi-label training")
-
-            N = x_train.shape[0]
-            loss_curve = pd.DataFrame(np.zeros((N, num_trees)))
-            pred_tree = np.zeros(N, dtype=float)
-            for i_tree in range(num_trees):
-                pred_tree += model.predict(x_train.values, start_iteration=i_tree, num_iteration=1)
-                loss_curve.iloc[:, i_tree] = self.get_loss(y_train, pred_tree)
-        else:
+        if self.base_model != "gbm":
             raise ValueError("not implemented yet")
+        num_trees = model.num_trees()
+        x_train, y_train = df_train["feature"].loc[:, features], df_train["label"]
+        # Lightgbm need 1D array as its label
+        if y_train.values.ndim == 2 and y_train.values.shape[1] == 1:
+            y_train = np.squeeze(y_train.values)
+        else:
+            raise ValueError("LightGBM doesn't support multi-label training")
+
+        N = x_train.shape[0]
+        loss_curve = pd.DataFrame(np.zeros((N, num_trees)))
+        pred_tree = np.zeros(N, dtype=float)
+        for i_tree in range(num_trees):
+            pred_tree += model.predict(x_train.values, start_iteration=i_tree, num_iteration=1)
+            loss_curve.iloc[:, i_tree] = self.get_loss(y_train, pred_tree)
         return loss_curve
 
     def predict(self, dataset: DatasetH, segment: Union[Text, slice] = "test"):
@@ -247,5 +245,4 @@ class DEnsembleModel(Model):
 
     def predict_sub(self, submodel, df_data, features):
         x_data, y_data = df_data["feature"].loc[:, features], df_data["label"]
-        pred_sub = pd.Series(submodel.predict(x_data.values), index=x_data.index)
-        return pred_sub
+        return pd.Series(submodel.predict(x_data.values), index=x_data.index)
